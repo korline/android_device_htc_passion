@@ -2,7 +2,9 @@ import init.mahimahi.usb.rc
 
 on early-init
     export EXTERNAL_STORAGE /mnt/sdcard
+    export SD_EXT_DIRECTORY /sd-ext
     mkdir /mnt/sdcard 0000 system system
+    mkdir /sd-ext 0771 system system
     # for backwards compatibility
     symlink /mnt/sdcard /sdcard
 
@@ -82,6 +84,12 @@ on boot
     setprop ro.ril.fd.scron.timeout 4
     setprop ro.ril.fd.scroff.timeout 3
 
+on property:init.svc.dhcpcd_wlan0=stopped
+   restart dhcpcdstate
+
+on property:wlan.driver.status=*
+   restart wifistate
+
     # Compass/Accelerometer daemon
 service akmd /system/bin/akmd
     class main
@@ -99,22 +107,22 @@ service wpa_supplicant /system/bin/wpa_supplicant \
     disabled
     oneshot
 
-service dhcpcd_wlan0 /system/bin/dhcpcd -ABKL
+service dhcpcd_wlan0 /system/bin/dhcpcd -ABKL --config /system/etc/dhcpcd/dhcpcd.conf --script /system/etc/dhcpcd/dhcpcd-hook
     class main
     disabled
     oneshot
 
-service dhcpcd_p2p /system/bin/dhcpcd -aABKL
+service dhcpcd_p2p /system/bin/dhcpcd -aABKL --config /system/etc/dhcpcd/dhcpcd.conf --script /system/etc/dhcpcd/dhcpcd-hook
     class main
     disabled
     oneshot
 
-service iprenew_wlan0 /system/bin/dhcpcd -n
+service iprenew_wlan0 /system/bin/dhcpcd -n --config /system/etc/dhcpcd/dhcpcd.conf --script /system/etc/dhcpcd/dhcpcd-hook
     class main
     disabled
     oneshot
 
-service iprenew_p2p /system/bin/dhcpcd -n
+service iprenew_p2p /system/bin/dhcpcd -n --config /system/etc/dhcpcd/dhcpcd.conf --script /system/etc/dhcpcd/dhcpcd-hook
     class main
     disabled
     oneshot
@@ -132,5 +140,13 @@ service hciattach /system/bin/brcm_patchram_plus --enable_hci --enable_lpm \
     user bluetooth
     group bluetooth net_bt_admin
     disabled
+
+service dhcpcdstate /system/etc/dhcpcd/dhcpcd-hook STOP wlan0
+    disabled
+    oneshot
+
+service wifistate /system/etc/wifi/wifi-hook wlan0
+    disabled
+    oneshot
 
 service dspcrashd /system/bin/dspcrashd
